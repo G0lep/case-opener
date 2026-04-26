@@ -97,14 +97,17 @@
             align-items: center;
             justify-content: center;
             gap: 12px;
-            color: white;
             animation: fadeSlideUp 0.4s ease-out;
+            color: white;
+            text-shadow: 1px 1px 2px black;
         }
         @keyframes fadeSlideUp {
             from { opacity: 0; transform: translateY(25px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .result-emoji { font-size: 48px; }
+        .result-emoji {
+            font-size: 48px;
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -209,129 +212,179 @@
     <button id="openBtn">🗝️ ОТКРЫТЬ КЕЙС</button>
     <div class="footer-note">
         ⚡ Каждые 4 открытия → +1 предмет «не курить» в кейсе<br>
-        ⏲️ Время ожидания увеличивается на 1% после каждого открытия
+        ⏲️ Время ожидания увеличивается на 1% после каждого открытия<br>
+        🧪 Тестовый кулдаун: 1 минута (растёт на 1% за открытие)
     </div>
 </div>
 
 <script>
-    const API_BASE = ''; // пусто, т.к. прокси через статику
-    let timerInterval = null;
+    // ---------- КОНФИГ ----------
+    const BASE_COOLDOWN_MS = 60 * 1000;   // 1 минута (тест)
+    const OPENINGS_TO_INCREASE = 4;
+    const STORAGE_KEY = "case_opener_smoke_data";
 
-    async function fetchState() {
-        const resp = await fetch('/state');
-        if (!resp.ok) throw new Error('Network error');
-        return await resp.json();
+    // Состояние
+    let state = {
+        totalOpens: 0,
+        smokeDropCount: 0,
+        notSmokeDropCount: 0,
+        notSmokeItemsInCase: 1,
+        lastOpenTimestamp: 0,
+        cooldownMultiplier: 1.0
+    };
+
+    // DOM элементы
+    const totalOpensEl = document.getElementById('totalOpens');
+    const smokeCountEl = document.getElementById('smokeCount');
+    const notSmokeCountEl = document.getElementById('notSmokeCount');
+    const itemsInCaseEl = document.getElementById('itemsInCase');
+    const smokeChanceEl = document.getElementById('smokeChance');
+    const cdMultiplierEl = document.getElementById('cdMultiplier');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const openBtn = document.getElementById('openBtn');
+    const caseBox = document.getElementById('caseBox');
+    const resultArea = document.getElementById('resultArea');
+
+    function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
-    async function performOpen() {
-        const btn = document.getElementById('openBtn');
-        btn.disabled = true;
+    function loadState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            resetState();
+            return;
+        }
         try {
-            const resp = await fetch('/open', { method: 'POST' });
-            if (!resp.ok) {
-                const err = await resp.json();
-                if (resp.status === 429) {
-                    showResultMessage(`⏳ Кулдаун: ${formatTime(err.remainingMs)}`, '⏰');
-                    await updateUI();
-                } else {
-                    showResultMessage('Ошибка сервера', '❌');
-                }
-                return;
-            }
-            const data = await resp.json();
-            // Анимация кейса
-            const caseBox = document.getElementById('caseBox');
-            caseBox.classList.add('case-animate');
-            setTimeout(() => caseBox.classList.remove('case-animate'), 600);
-
-            if (data.result === 'smoke') {
-                showResultMessage('🚬 КУРИТЬ! Шанс уменьшится.', '🚬');
-            } else {
-                showResultMessage('🍃 НЕ КУРИТЬ! Отличный результат.', '🍃');
-            }
-            await updateUI();
-        } catch (err) {
-            console.error(err);
-            showResultMessage('Ошибка соединения', '⚠️');
-        } finally {
-            btn.disabled = false;
+            const saved = JSON.parse(raw);
+            state.totalOpens = saved.totalOpens ?? 0;
+            state.smokeDropCount = saved.smokeDropCount ?? 0;
+            state.notSmokeDropCount = saved.notSmokeDropCount ?? 0;
+            state.notSmokeItemsInCase = saved.notSmokeItemsInCase ?? 1;
+            state.lastOpenTimestamp = saved.lastOpenTimestamp ?? 0;
+            state.cooldownMultiplier = saved.cooldownMultiplier ?? 1.0;
+            if (state.notSmokeItemsInCase < 1) state.notSmokeItemsInCase = 1;
+            if (state.cooldownMultiplier < 1.0) state.cooldownMultiplier = 1.0;
+        } catch(e) {
+            resetState();
         }
+        updateUI();
     }
 
-    async function updateUI() {
-        const state = await fetchState();
-        document.getElementById('totalOpens').innerText = state.totalOpens;
-        document.getElementById('smokeCount').innerText = state.smokeDropCount;
-        document.getElementById('notSmokeCount').innerText = state.notSmokeDropCount;
-        document.getElementById('itemsInCase').innerText = state.notSmokeItemsInCase;
-        const chancePercent = (state.smokeChance * 100).toFixed(1);
-        document.getElementById('smokeChance').innerText = `${chancePercent}%`;
-        document.getElementById('cdMultiplier').innerText = state.cooldownMultiplier.toFixed(4) + 'x';
-        
-        const btn = document.getElementById('openBtn');
-        btn.disabled = !state.canOpen;
-        
-        // Обновить таймер на основе оставшегося времени
-        updateTimerDisplay(state.remainingCooldownMs);
+    function resetState() {
+        state = {
+            totalOpens: 0,
+            smokeDropCount: 0,
+            notSmokeDropCount: 0,
+            notSmokeItemsInCase: 1,
+            lastOpenTimestamp: 0,
+            cooldownMultiplier: 1.0
+        };
+        saveState();
+        updateUI();
+        showResultMessage("✨ Прогресс сброшен ✨", "🔄");
     }
 
-    function updateTimerDisplay(remainingMs) {
-        const timerEl = document.getElementById('timerDisplay');
+    function getCurrentSmokeProbability() {
+        return 1 / (1 + state.notSmokeItemsInCase);
+    }
+
+    function isAbleToOpen() {
+        if (state.totalOpens === 0) return true;
+        const now = Date.now();
+        const currentCooldown = BASE_COOLDOWN_MS * state.cooldownMultiplier;
+        return (now - state.lastOpenTimestamp) >= currentCooldown;
+    }
+
+    function getRemainingCooldownMs() {
+        if (state.totalOpens === 0) return 0;
+        const now = Date.now();
+        const currentCooldown = BASE_COOLDOWN_MS * state.cooldownMultiplier;
+        const remaining = currentCooldown - (now - state.lastOpenTimestamp);
+        return remaining > 0 ? remaining : 0;
+    }
+
+    function updateUI() {
+        totalOpensEl.innerText = state.totalOpens;
+        smokeCountEl.innerText = state.smokeDropCount;
+        notSmokeCountEl.innerText = state.notSmokeDropCount;
+        itemsInCaseEl.innerText = state.notSmokeItemsInCase;
+        smokeChanceEl.innerText = (getCurrentSmokeProbability() * 100).toFixed(1) + '%';
+        cdMultiplierEl.innerText = state.cooldownMultiplier.toFixed(4) + 'x';
+        openBtn.disabled = !isAbleToOpen();
+        updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+        const remainingMs = getRemainingCooldownMs();
         if (remainingMs <= 0) {
-            timerEl.innerText = 'ГОТОВО!';
-        } else {
-            timerEl.innerText = formatTime(remainingMs);
+            timerDisplay.innerText = "ГОТОВО!";
+            return;
         }
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        timerDisplay.innerText = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}:00`;
     }
 
-    function formatTime(ms) {
-        const hours = Math.floor(ms / (1000 * 60 * 60));
-        const minutes = Math.floor((ms % (3600000)) / 60000);
-        const seconds = Math.floor((ms % 60000) / 1000);
-        return `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-    }
-
-    function showResultMessage(text, emoji = '📢') {
-        const resultArea = document.getElementById('resultArea');
-        resultArea.innerHTML = `
-            <div class="result-card">
-                <span class="result-emoji">${emoji}</span>
-                <span>${text}</span>
-                <span class="result-emoji">${emoji}</span>
-            </div>
-        `;
-        // Автоматически вернуть стандартный вид через 4 секунды
+    function showResultMessage(text, emoji = "📢") {
+        resultArea.innerHTML = `<div class="result-card"><span class="result-emoji">${emoji}</span><span>${text}</span><span class="result-emoji">${emoji}</span></div>`;
         setTimeout(() => {
-            if (document.getElementById('resultArea').innerHTML.includes(text)) {
-                document.getElementById('resultArea').innerHTML = '<div style="color:#aaa; font-size:14px;">⬅️ Нажми на кейс</div>';
+            if (resultArea.innerHTML.includes(text)) {
+                resultArea.innerHTML = '<div style="color:#aaa; font-size:14px;">⬅️ Нажми на кейс</div>';
             }
         }, 4000);
     }
 
-    async function refreshTimerLoop() {
-        try {
-            const state = await fetchState();
-            updateTimerDisplay(state.remainingCooldownMs);
-            const btn = document.getElementById('openBtn');
-            btn.disabled = !state.canOpen;
-        } catch (e) {
-            console.warn('Timer refresh error');
+    async function performOpen() {
+        if (!isAbleToOpen()) {
+            showResultMessage("⏳ Подождите кулдаун!", "⏰");
+            return;
         }
+        caseBox.classList.add('case-animate');
+        await new Promise(r => setTimeout(r, 500));
+        
+        const droppedSmoke = Math.random() < getCurrentSmokeProbability();
+        
+        if (droppedSmoke) {
+            state.smokeDropCount++;
+            showResultMessage("🚬 КУРИТЬ! Шанс уменьшится.", "🚬");
+        } else {
+            state.notSmokeDropCount++;
+            showResultMessage("🍃 НЕ КУРИТЬ! Отличный результат.", "🍃");
+        }
+        
+        state.totalOpens++;
+        if (state.totalOpens % OPENINGS_TO_INCREASE === 0) {
+            state.notSmokeItemsInCase++;
+        }
+        state.cooldownMultiplier *= 1.01;
+        state.lastOpenTimestamp = Date.now();
+        
+        saveState();
+        updateUI();
+        setTimeout(() => caseBox.classList.remove('case-animate'), 600);
     }
 
-    // Запуск цикла обновления каждую секунду
+    let timerInterval;
     function startTimerLoop() {
         if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(refreshTimerLoop, 1000);
+        timerInterval = setInterval(() => {
+            updateTimerDisplay();
+            updateUI();
+        }, 1000);
     }
 
-    document.getElementById('openBtn').addEventListener('click', performOpen);
-    document.getElementById('caseBox').addEventListener('click', performOpen);
+    openBtn.addEventListener('click', performOpen);
+    caseBox.addEventListener('click', performOpen);
 
-    (async function init() {
-        await updateUI();
+    function init() {
+        loadState();
         startTimerLoop();
-    })();
+        if (state.totalOpens === 0) showResultMessage("Нажми на кейс, чтобы начать!", "🎲");
+        else showResultMessage("Добро пожаловать обратно!", "👋");
+    }
+    init();
 </script>
 </body>
 </html>
