@@ -29,6 +29,182 @@
             box-shadow: 0 25px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
         }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,215,0,0.3);
+        }
+        .balance {
+            background: #2c1a0c;
+            padding: 8px 18px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        .balance:active {
+            transform: scale(0.97);
+        }
+        .balance span:first-child {
+            font-size: 24px;
+        }
+        .tasks-btn {
+            background: #ffb347;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #a45f1a;
+            width: auto;
+            margin-top: 0;
+        }
+        .tasks-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #a45f1a;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #0f1a24;
+            border-radius: 32px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+            border: 1px solid #ffd966;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ffd966;
+        }
+        .modal-header h3 {
+            margin: 0;
+            color: #ffd966;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #ffd966;
+            box-shadow: none;
+            width: auto;
+            margin: 0;
+            padding: 0;
+        }
+        .smoke-btn {
+            background: #ffb347;
+            border: none;
+            font-weight: bold;
+            font-size: 24px;
+            padding: 15px;
+            width: 100%;
+            border-radius: 60px;
+            color: #1e2a32;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 5px 0 #a45f1a;
+            margin-top: 20px;
+        }
+        .smoke-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #a45f1a;
+        }
+        .smoke-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .task-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 12px 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .task-info {
+            flex: 1;
+        }
+        .task-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #ffdd99;
+        }
+        .task-desc {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .task-reward {
+            font-size: 14px;
+            color: #ffb347;
+            margin-top: 4px;
+        }
+        .task-check {
+            background: #2c3e44;
+            border: none;
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            color: white;
+            box-shadow: none;
+            width: auto;
+            margin: 0;
+        }
+        .task-check:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .task-check.completed {
+            background: #27ae60;
+        }
+        .subtasks {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        .subtask-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+            font-size: 14px;
+        }
+        .subtask-item input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
         .case-container {
             display: flex;
             justify-content: center;
@@ -183,11 +359,20 @@
             .case-lid { font-size: 50px; }
             .stat-value { font-size: 22px; }
             .timer { font-size: 22px; }
+            .balance { font-size: 16px; padding: 5px 12px; }
         }
     </style>
 </head>
 <body>
 <div class="app">
+    <div class="header">
+        <div class="balance" id="balanceBtn">
+            <span>🚬</span>
+            <span id="cigaretteBalance">0</span>
+        </div>
+        <button class="tasks-btn" id="tasksBtn">📋 ЗАДАНИЯ</button>
+    </div>
+
     <div class="case-container">
         <div class="case" id="caseBox">
             <div class="case-lid">📦✨</div>
@@ -211,17 +396,70 @@
     </div>
     <button id="openBtn">🗝️ ОТКРЫТЬ КЕЙС</button>
     <div class="footer-note">
-        ⚡ Каждые 4 открытия → +1 предмет «не курить» в кейсе<br>
-        ⏲️ Время ожидания увеличивается на 1% после каждого открытия<br>
-        🧪 Начальный кулдаун: 2 ч (растёт на 1% за открытие)
+        ⚡ Каждые 3 «не курить» → +1 сигарета<br>
+        📋 Задания → +сигареты<br>
+        ⏲️ Кулдаун: 2 часа (растёт на 1% за открытие)
+    </div>
+</div>
+
+<!-- Модальное окно заданий -->
+<div class="modal" id="tasksModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📋 ЗАДАНИЯ</h3>
+            <button class="close-modal" id="closeModal">✖</button>
+        </div>
+        <div id="tasksList"></div>
+    </div>
+</div>
+
+<!-- Модальное окно покурить -->
+<div class="modal" id="smokeModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🚬 ПОКУРИТЬ</h3>
+            <button class="close-modal" id="closeSmokeModal">✖</button>
+        </div>
+        <div style="text-align: center; padding: 10px;">
+            <p style="font-size: 18px; margin-bottom: 20px;">Потратить 1 сигарету?</p>
+            <button class="smoke-btn" id="smokeConfirmBtn">💨 ПОКУРИТЬ</button>
+        </div>
     </div>
 </div>
 
 <script>
     // ---------- КОНФИГ ----------
-    const BASE_COOLDOWN_MS = 2 * 60 * 60 * 1000;   
+    const BASE_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 ЧАСА
     const OPENINGS_TO_INCREASE = 4;
+    const NOT_SMOKE_FOR_CIGARETTE = 3; // каждые 3 "не курить" = 1 сигарета
     const STORAGE_KEY = "case_opener_smoke_data";
+
+    // Задания (только два)
+    const TASKS = {
+        exercises: {
+            id: 'exercises',
+            title: '💪 Упражнения',
+            description: 'Выполнить все упражнения',
+            reward: 1,
+            subtasks: [
+                { id: 'pushups', name: 'Отжаться 20 раз', completed: false },
+                { id: 'pullups', name: 'Подтянуться 10 раз', completed: false },
+                { id: 'squats', name: 'Присесть 50 раз', completed: false }
+            ],
+            type: 'subtasks',
+            lastCompleted: null
+        },
+        earlyWake: {
+            id: 'earlyWake',
+            title: '🌅 Ранний подъём',
+            description: 'Встать в 7:00-8:00 утра',
+            reward: 1,
+            type: 'timecheck',
+            timeStart: 7,
+            timeEnd: 8,
+            lastCompleted: null
+        }
+    };
 
     // Состояние
     let state = {
@@ -230,7 +468,10 @@
         notSmokeDropCount: 0,
         notSmokeItemsInCase: 1,
         lastOpenTimestamp: 0,
-        cooldownMultiplier: 1.0
+        cooldownMultiplier: 1.0,
+        cigaretteBalance: 0,
+        notSmokeStreak: 0,
+        tasks: JSON.parse(JSON.stringify(TASKS))
     };
 
     // DOM элементы
@@ -244,7 +485,17 @@
     const openBtn = document.getElementById('openBtn');
     const caseBox = document.getElementById('caseBox');
     const resultArea = document.getElementById('resultArea');
+    const cigaretteBalanceEl = document.getElementById('cigaretteBalance');
+    const tasksModal = document.getElementById('tasksModal');
+    const tasksBtn = document.getElementById('tasksBtn');
+    const closeModal = document.getElementById('closeModal');
+    const tasksList = document.getElementById('tasksList');
+    const smokeModal = document.getElementById('smokeModal');
+    const closeSmokeModal = document.getElementById('closeSmokeModal');
+    const smokeConfirmBtn = document.getElementById('smokeConfirmBtn');
+    const balanceBtn = document.getElementById('balanceBtn');
 
+    // Сохранение
     function saveState() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -263,12 +514,16 @@
             state.notSmokeItemsInCase = saved.notSmokeItemsInCase ?? 1;
             state.lastOpenTimestamp = saved.lastOpenTimestamp ?? 0;
             state.cooldownMultiplier = saved.cooldownMultiplier ?? 1.0;
+            state.cigaretteBalance = saved.cigaretteBalance ?? 0;
+            state.notSmokeStreak = saved.notSmokeStreak ?? 0;
+            state.tasks = saved.tasks ?? JSON.parse(JSON.stringify(TASKS));
             if (state.notSmokeItemsInCase < 1) state.notSmokeItemsInCase = 1;
             if (state.cooldownMultiplier < 1.0) state.cooldownMultiplier = 1.0;
         } catch(e) {
             resetState();
         }
         updateUI();
+        renderTasks();
     }
 
     function resetState() {
@@ -278,13 +533,38 @@
             notSmokeDropCount: 0,
             notSmokeItemsInCase: 1,
             lastOpenTimestamp: 0,
-            cooldownMultiplier: 1.0
+            cooldownMultiplier: 1.0,
+            cigaretteBalance: 0,
+            notSmokeStreak: 0,
+            tasks: JSON.parse(JSON.stringify(TASKS))
         };
         saveState();
         updateUI();
+        renderTasks();
         showResultMessage("✨ Прогресс сброшен ✨", "🔄");
     }
 
+    function addCigarettes(amount) {
+        state.cigaretteBalance += amount;
+        cigaretteBalanceEl.innerText = state.cigaretteBalance;
+        saveState();
+        showResultMessage(`+${amount} 🚬 сигарет!`, "🎁");
+    }
+
+    function smokeCigarette() {
+        if (state.cigaretteBalance >= 1) {
+            state.cigaretteBalance--;
+            cigaretteBalanceEl.innerText = state.cigaretteBalance;
+            saveState();
+            showResultMessage(`💨 Вы покурили. Осталось ${state.cigaretteBalance} 🚬`, "🚬");
+            smokeModal.classList.remove('active');
+        } else {
+            showResultMessage("❌ Нет сигарет! Выполняйте задания или открывайте кейс!", "⚠️");
+            smokeModal.classList.remove('active');
+        }
+    }
+
+    // Обновление интерфейса
     function getCurrentSmokeProbability() {
         return 1 / (1 + state.notSmokeItemsInCase);
     }
@@ -304,6 +584,14 @@
         return remaining > 0 ? remaining : 0;
     }
 
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+    }
+
     function updateUI() {
         totalOpensEl.innerText = state.totalOpens;
         smokeCountEl.innerText = state.smokeDropCount;
@@ -311,6 +599,7 @@
         itemsInCaseEl.innerText = state.notSmokeItemsInCase;
         smokeChanceEl.innerText = (getCurrentSmokeProbability() * 100).toFixed(1) + '%';
         cdMultiplierEl.innerText = state.cooldownMultiplier.toFixed(4) + 'x';
+        cigaretteBalanceEl.innerText = state.cigaretteBalance;
         openBtn.disabled = !isAbleToOpen();
         updateTimerDisplay();
     }
@@ -321,10 +610,7 @@
             timerDisplay.innerText = "ГОТОВО!";
             return;
         }
-        const totalSeconds = Math.floor(remainingMs / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        timerDisplay.innerText = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}:00`;
+        timerDisplay.innerText = formatTime(remainingMs);
     }
 
     function showResultMessage(text, emoji = "📢") {
@@ -336,6 +622,7 @@
         }, 4000);
     }
 
+    // Открытие кейса
     async function performOpen() {
         if (!isAbleToOpen()) {
             showResultMessage("⏳ Подождите кулдаун!", "⏰");
@@ -348,14 +635,26 @@
         
         if (droppedSmoke) {
             state.smokeDropCount++;
-            showResultMessage("🚬 КУРИТЬ! Шанс уменьшится.", "🚬");
+            state.notSmokeStreak = 0;
+            showResultMessage("🚬 КУРИТЬ! Серия прервана.", "🚬");
         } else {
             state.notSmokeDropCount++;
-            showResultMessage("🍃 НЕ КУРИТЬ! Отличный результат.", "🍃");
+            state.notSmokeStreak++;
+            
+            if (state.notSmokeStreak >= NOT_SMOKE_FOR_CIGARETTE) {
+                const cigarsToAdd = Math.floor(state.notSmokeStreak / NOT_SMOKE_FOR_CIGARETTE);
+                state.cigaretteBalance += cigarsToAdd;
+                state.notSmokeStreak = state.notSmokeStreak % NOT_SMOKE_FOR_CIGARETTE;
+                saveState();
+                cigaretteBalanceEl.innerText = state.cigaretteBalance;
+                showResultMessage(`🍃 +${cigarsToAdd} 🚬 за серию "не курить"!`, "🎉");
+            } else {
+                showResultMessage("🍃 НЕ КУРИТЬ! Серия продолжается.", "🍃");
+            }
         }
         
         state.totalOpens++;
-        if (state.totalOpens % OPENINGS_TO_INCREASE === 0) {
+        if (state.totalOpens % OPENINGS_TO_INCREASE === 0 && state.totalOpens > 0) {
             state.notSmokeItemsInCase++;
         }
         state.cooldownMultiplier *= 1.01;
@@ -366,6 +665,174 @@
         setTimeout(() => caseBox.classList.remove('case-animate'), 600);
     }
 
+    // Рендер заданий
+    function renderTasks() {
+        tasksList.innerHTML = '';
+        for (const [key, task] of Object.entries(state.tasks)) {
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task-item';
+            
+            let canComplete = false;
+            let buttonText = '✅ Выполнить';
+            let isCompleted = false;
+            
+            if (task.type === 'subtasks') {
+                const allCompleted = task.subtasks.every(st => st.completed);
+                if (allCompleted && !task.lastCompleted) {
+                    canComplete = true;
+                } else if (task.lastCompleted) {
+                    const lastDate = new Date(task.lastCompleted).toDateString();
+                    const today = new Date().toDateString();
+                    if (lastDate === today) {
+                        isCompleted = true;
+                        buttonText = '✅ Выполнено';
+                    } else if (allCompleted) {
+                        canComplete = true;
+                    }
+                }
+            } else if (task.type === 'timecheck') {
+                const now = new Date();
+                const hour = now.getHours();
+                if (!task.lastCompleted && hour >= task.timeStart && hour < task.timeEnd) {
+                    canComplete = true;
+                } else if (task.lastCompleted) {
+                    const lastDate = new Date(task.lastCompleted).toDateString();
+                    const today = new Date().toDateString();
+                    if (lastDate === today) {
+                        isCompleted = true;
+                        buttonText = '✅ Выполнено';
+                    } else {
+                        const hourNow = now.getHours();
+                        if (hourNow >= task.timeStart && hourNow < task.timeEnd) canComplete = true;
+                    }
+                }
+            }
+            
+            taskDiv.innerHTML = `
+                <div class="task-info">
+                    <div class="task-title">${task.title}</div>
+                    <div class="task-desc">${task.description}</div>
+                    <div class="task-reward">🎁 Награда: ${task.reward} 🚬</div>
+                    ${task.type === 'subtasks' ? `<div class="subtasks" id="subtasks-${key}"></div>` : ''}
+                </div>
+                <button class="task-check ${isCompleted ? 'completed' : ''}" data-task="${key}" ${!canComplete || isCompleted ? 'disabled' : ''}>${buttonText}</button>
+            `;
+            
+            tasksList.appendChild(taskDiv);
+            
+            if (task.type === 'subtasks') {
+                const subtasksContainer = taskDiv.querySelector(`#subtasks-${key}`);
+                task.subtasks.forEach((st, idx) => {
+                    const stDiv = document.createElement('div');
+                    stDiv.className = 'subtask-item';
+                    stDiv.innerHTML = `
+                        <input type="checkbox" id="st-${key}-${idx}" ${st.completed ? 'checked' : ''} data-task="${key}" data-subtask="${st.id}">
+                        <label for="st-${key}-${idx}">${st.name}</label>
+                    `;
+                    subtasksContainer.appendChild(stDiv);
+                });
+            }
+        }
+        
+        document.querySelectorAll('.task-check').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const taskId = btn.dataset.task;
+                completeTask(taskId);
+            });
+        });
+        
+        document.querySelectorAll('.subtask-item input').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const taskId = cb.dataset.task;
+                const subtaskId = cb.dataset.subtask;
+                const task = state.tasks[taskId];
+                if (task && task.subtasks) {
+                    const subtask = task.subtasks.find(st => st.id === subtaskId);
+                    if (subtask) {
+                        subtask.completed = cb.checked;
+                        saveState();
+                        renderTasks();
+                        const allCompleted = task.subtasks.every(st => st.completed);
+                        if (allCompleted && !task.lastCompleted) {
+                            showResultMessage(`🎉 Все упражнения выполнены! Нажмите "Выполнить" для получения награды!`, "💪");
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
+    function completeTask(taskId) {
+        const task = state.tasks[taskId];
+        if (!task) return;
+        
+        if (task.type === 'subtasks') {
+            const allCompleted = task.subtasks.every(st => st.completed);
+            if (!allCompleted) {
+                showResultMessage("❌ Выполните все упражнения сначала!", "⚠️");
+                return;
+            }
+            if (task.lastCompleted) {
+                const lastDate = new Date(task.lastCompleted).toDateString();
+                if (lastDate === new Date().toDateString()) {
+                    showResultMessage("❌ Сегодня вы уже получали награду за упражнения!", "⚠️");
+                    return;
+                }
+            }
+        } else if (task.type === 'timecheck') {
+            const now = new Date();
+            const hour = now.getHours();
+            if (hour < task.timeStart || hour >= task.timeEnd) {
+                showResultMessage(`❌ Награда доступна только с ${task.timeStart}:00 до ${task.timeEnd}:00!`, "⏰");
+                return;
+            }
+            if (task.lastCompleted) {
+                const lastDate = new Date(task.lastCompleted).toDateString();
+                if (lastDate === new Date().toDateString()) {
+                    showResultMessage("❌ Сегодня вы уже получали награду за ранний подъём!", "⚠️");
+                    return;
+                }
+            }
+        }
+        
+        addCigarettes(task.reward);
+        task.lastCompleted = Date.now();
+        saveState();
+        renderTasks();
+        showResultMessage(`🎉 +${task.reward} 🚬 за "${task.title}"!`, "🏆");
+        
+        if (task.type === 'subtasks') {
+            task.subtasks.forEach(st => st.completed = false);
+            saveState();
+            renderTasks();
+        }
+    }
+
+    // Модальное окно заданий
+    tasksBtn.addEventListener('click', () => {
+        tasksModal.classList.add('active');
+        renderTasks();
+    });
+    closeModal.addEventListener('click', () => {
+        tasksModal.classList.remove('active');
+    });
+    tasksModal.addEventListener('click', (e) => {
+        if (e.target === tasksModal) tasksModal.classList.remove('active');
+    });
+
+    // Модальное окно для траты сигарет
+    balanceBtn.addEventListener('click', () => {
+        smokeModal.classList.add('active');
+    });
+    closeSmokeModal.addEventListener('click', () => {
+        smokeModal.classList.remove('active');
+    });
+    smokeModal.addEventListener('click', (e) => {
+        if (e.target === smokeModal) smokeModal.classList.remove('active');
+    });
+    smokeConfirmBtn.addEventListener('click', smokeCigarette);
+
+    // Таймер
     let timerInterval;
     function startTimerLoop() {
         if (timerInterval) clearInterval(timerInterval);
